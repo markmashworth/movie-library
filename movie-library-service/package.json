@@ -1,0 +1,26 @@
+{
+  "type": "module",
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  },
+  "name": "movie-library-explorer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "scrape:drive": "node scripts/exploratory-analysis.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:local": "tsx --no-deprecation --env-file=.env.local index.ts",
+    "seed": "node scripts/seed.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "express": "^5.2.1",
+    "googleapis": "^171.4.0",
+    "p-queue": "^8.0.1"
+  }
+}
