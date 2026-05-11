@@ -106,9 +106,9 @@ export class GoogleDriveClient {
     }
 
     const oauth2Client = new google.auth.OAuth2(
-      vars.GOOGLE_CLIENT_ID!,
-      vars.GOOGLE_CLIENT_SECRET!,
-      vars.GOOGLE_REDIRECT_URI!,
+      vars.GOOGLE_CLIENT_ID,
+      vars.GOOGLE_CLIENT_SECRET,
+      vars.GOOGLE_REDIRECT_URI,
     );
 
     oauth2Client.setCredentials({
@@ -125,7 +125,8 @@ export class GoogleDriveClient {
         retryableStatusCodes: [429, 500, 502, 503, 504],
         httpMethodsToRetry: ['GET'],
         retryBackoff: async (err: unknown, defaultDelay: number) => {
-          const retryAfter = (err as any)?.response?.headers?.['retry-after'];
+          type GaxiosLike = { response?: { headers?: Record<string, string> } };
+          const retryAfter = (err as GaxiosLike)?.response?.headers?.['retry-after'];
           const ms =
             retryAfter != null && Number.isFinite(Number(retryAfter)) && Number(retryAfter) > 0
               ? Number(retryAfter) * 1_000

@@ -64,7 +64,6 @@ app.use(
     err: Error,
     req: express.Request,
     res: express.Response,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _next: express.NextFunction,
   ) => {
     // req.id is stamped by pino-http on every request.

@@ -130,7 +130,6 @@ export async function waitForIdle(): Promise<void> {
   // Drain both queues, alternating, until each is idle and stays idle.
   // Because the directory queue feeds the file queue, both must be checked
   // again after each round.
-  /* eslint-disable no-constant-condition */
   while (true) {
     await directoryQueue.onIdle();
     await fileQueue.onIdle();
