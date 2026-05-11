@@ -1,0 +1,897 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Movie Library API",
+    "version": "1.0.0",
+    "description": "REST API for managing a movie library. Supports browsing, searching, and\ncreating movies; managing genres; and triggering a Google Drive migration.\n\nAll endpoints are prefixed with `/api/v1`.\n"
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Movies",
+      "description": "Operations on the movie catalog"
+    },
+    {
+      "name": "Genres",
+      "description": "Operations on the genre list"
+    },
+    {
+      "name": "Migration",
+      "description": "Bulk import from Google Drive"
+    }
+  ],
+  "paths": {
+    "/movies": {
+      "get": {
+        "operationId": "listMovies",
+        "tags": [
+          "Movies"
+        ],
+        "summary": "List, search, and filter movies",
+        "description": "Returns a paginated list of movies. Results can be filtered by title\nsubstring (`q`), genre, rating, and release year, and sorted by several\nfields.\n\nWhen `q` is provided, results are ranked by match quality (exact match \u2192\nstarts-with \u2192 contains) before the requested `sort` order is applied.\n",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Case-insensitive title substring search.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "genre",
+            "in": "query",
+            "description": "Filter by genre. Repeat the parameter to match any of the given\ngenres (OR logic).\n",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "min_rating",
+            "in": "query",
+            "description": "Include only movies with a rating \u2265 this value.",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "format": "float",
+              "minimum": 0.0,
+              "maximum": 10.0,
+              "default": 0
+            }
+          },
+          {
+            "name": "year_min",
+            "in": "query",
+            "description": "Include only movies released on or after this year (inclusive).",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "year_max",
+            "in": "query",
+            "description": "Include only movies released on or before this year (inclusive).",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Sort order for results.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "rating_desc",
+                "rating_asc",
+                "year_desc",
+                "year_asc",
+                "title_asc"
+              ],
+              "default": "rating_desc"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results to return (clamped to 1\u2013100).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based index of the first result to return.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of movies.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovieList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameter (e.g. unrecognised `sort` value).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidParameterError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createMovie",
+        "tags": [
+          "Movies"
+        ],
+        "summary": "Create a movie",
+        "description": "Adds a new movie to the catalog. The `(title, year, rating)` triple must\nbe unique; if a matching record already exists a **409 Conflict** is\nreturned together with the existing record.\n\nRatings are stored at one decimal place of precision\n(`Math.round(rating \u00d7 10) / 10`).\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MovieInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Movie created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Movie"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A movie with the same title, year, and rating already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateMovieError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "One or more fields failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/movies/stats": {
+      "get": {
+        "operationId": "getMovieStats",
+        "tags": [
+          "Movies"
+        ],
+        "summary": "Get catalog statistics",
+        "description": "Returns aggregate statistics over the entire movie catalog. No filters\nare applied \u2014 the response always reflects all movies in the store.\n",
+        "responses": {
+          "200": {
+            "description": "Aggregate statistics.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stats"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/movies/{id}": {
+      "get": {
+        "operationId": "getMovie",
+        "tags": [
+          "Movies"
+        ],
+        "summary": "Get a single movie",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Integer ID of the movie.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested movie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Movie"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The supplied `id` is not an integer.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidParameterError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No movie exists with the given `id`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/genres": {
+      "get": {
+        "operationId": "listGenres",
+        "tags": [
+          "Genres"
+        ],
+        "summary": "List all valid genres",
+        "description": "Returns the canonical list of genres that may be used when creating or\nfiltering movies. Genres are returned in alphabetical order.\n",
+        "responses": {
+          "200": {
+            "description": "List of genre names.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenreList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "addGenre",
+        "tags": [
+          "Genres"
+        ],
+        "summary": "Add a new genre",
+        "description": "Adds a genre to the canonical list. The name is matched case-sensitively;\nleading/trailing whitespace is trimmed before the check.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenreInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Genre added successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenreCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The `name` field is missing or empty.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenreError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The genre already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenreError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/migration": {
+      "post": {
+        "operationId": "startMigration",
+        "tags": [
+          "Migration"
+        ],
+        "summary": "Start a Google Drive migration",
+        "description": "Triggers a background migration that walks a Google Drive folder tree,\ndownloads JSON movie files, and upserts them into the catalog.\n\nThe endpoint returns immediately with **202 Accepted**; processing\ncontinues asynchronously. Progress and errors are written to the server\nconsole.\n\nUpsert semantics: if a movie with the same `(title, year, rating)`\nidentity already exists, its genre list is merged rather than replaced.\n\n**Environment variables required for Google Drive access:**\n`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`,\n`GOOGLE_REFRESH_TOKEN`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigrationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Migration accepted and running in the background.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The `rootFolderId` field is missing or empty.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidParameterError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Movie": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "year",
+          "rating",
+          "genres"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Unique identifier assigned by the server.",
+            "example": 1
+          },
+          "title": {
+            "type": "string",
+            "description": "Movie title.",
+            "example": "The Shawshank Redemption"
+          },
+          "year": {
+            "type": "integer",
+            "description": "Release year.",
+            "example": 1994
+          },
+          "rating": {
+            "type": "number",
+            "format": "float",
+            "description": "Rating on a 0.0\u201310.0 scale, stored to one decimal place.",
+            "minimum": 0.0,
+            "maximum": 10.0,
+            "example": 9.3
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of genres associated with the movie.",
+            "example": [
+              "Drama"
+            ]
+          }
+        }
+      },
+      "MovieInput": {
+        "type": "object",
+        "required": [
+          "title",
+          "year",
+          "rating",
+          "genres"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Movie title.",
+            "example": "Interstellar"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1900,
+            "maximum": 2030,
+            "description": "Release year.",
+            "example": 2014
+          },
+          "rating": {
+            "type": "number",
+            "format": "float",
+            "minimum": 0.0,
+            "maximum": 10.0,
+            "description": "Rating on a 0.0\u201310.0 scale.",
+            "example": 8.6
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "One or more genres. Each value must already exist in the canonical\ngenre list (see `GET /genres`).\n",
+            "example": [
+              "Sci-Fi",
+              "Drama"
+            ]
+          }
+        }
+      },
+      "MovieList": {
+        "type": "object",
+        "required": [
+          "data",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Movie"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of movies matching the current filters (before pagination).",
+            "example": 75
+          },
+          "limit": {
+            "type": "integer",
+            "description": "The effective page size used for this response.",
+            "example": 20
+          },
+          "offset": {
+            "type": "integer",
+            "description": "The zero-based index of the first result in this page.",
+            "example": 0
+          }
+        }
+      },
+      "Stats": {
+        "type": "object",
+        "required": [
+          "total",
+          "avg_rating",
+          "genre_count",
+          "min_year",
+          "max_year",
+          "top_genres",
+          "by_year"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Total number of movies in the catalog.",
+            "example": 75
+          },
+          "avg_rating": {
+            "type": "number",
+            "format": "float",
+            "description": "Mean rating across all movies, rounded to 2 decimal places.",
+            "example": 7.89
+          },
+          "genre_count": {
+            "type": "integer",
+            "description": "Number of distinct genres present in the catalog.",
+            "example": 15
+          },
+          "min_year": {
+            "type": "integer",
+            "description": "Earliest release year in the catalog.",
+            "example": 1976
+          },
+          "max_year": {
+            "type": "integer",
+            "description": "Latest release year in the catalog.",
+            "example": 2025
+          },
+          "top_genres": {
+            "type": "array",
+            "description": "All genres, sorted by movie count descending.",
+            "items": {
+              "$ref": "#/components/schemas/GenreStat"
+            }
+          },
+          "by_year": {
+            "type": "array",
+            "description": "Per-year buckets sorted by year descending. Within each bucket, movies are sorted by rating descending.",
+            "items": {
+              "$ref": "#/components/schemas/YearBucket"
+            }
+          }
+        }
+      },
+      "GenreStat": {
+        "type": "object",
+        "required": [
+          "name",
+          "count"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Drama"
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of movies that include this genre.",
+            "example": 38
+          }
+        }
+      },
+      "YearBucket": {
+        "type": "object",
+        "required": [
+          "year",
+          "count",
+          "movies"
+        ],
+        "properties": {
+          "year": {
+            "type": "integer",
+            "example": 2025
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of movies released in this year.",
+            "example": 2
+          },
+          "movies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MovieSummary"
+            }
+          }
+        }
+      },
+      "MovieSummary": {
+        "type": "object",
+        "description": "Lightweight movie representation used inside `Stats.by_year` buckets.",
+        "required": [
+          "id",
+          "title",
+          "rating",
+          "genres"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 33
+          },
+          "title": {
+            "type": "string",
+            "example": "Dune Part Two"
+          },
+          "rating": {
+            "type": "number",
+            "format": "float",
+            "example": 8.5
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Sci-Fi",
+              "Adventure"
+            ]
+          }
+        }
+      },
+      "GenreList": {
+        "type": "object",
+        "required": [
+          "genres"
+        ],
+        "properties": {
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Action",
+              "Animation",
+              "Comedy",
+              "Crime",
+              "Documentary",
+              "Drama",
+              "Fantasy",
+              "Horror",
+              "Music",
+              "Mystery",
+              "Romance",
+              "Sci-Fi",
+              "Thriller",
+              "War",
+              "Western"
+            ]
+          }
+        }
+      },
+      "GenreInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Name of the new genre. Leading/trailing whitespace is trimmed.",
+            "example": "Superhero"
+          }
+        }
+      },
+      "GenreCreated": {
+        "type": "object",
+        "required": [
+          "genre"
+        ],
+        "properties": {
+          "genre": {
+            "type": "string",
+            "description": "The name of the newly created genre.",
+            "example": "Superhero"
+          }
+        }
+      },
+      "MigrationInput": {
+        "type": "object",
+        "required": [
+          "rootFolderId"
+        ],
+        "properties": {
+          "rootFolderId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Google Drive folder ID that serves as the root of the migration walk.",
+            "example": "1a2b3c4d5e6f7g8h9i0j"
+          }
+        }
+      },
+      "MigrationAccepted": {
+        "type": "object",
+        "required": [
+          "status",
+          "message",
+          "rootFolderId"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted"
+            ],
+            "example": "accepted"
+          },
+          "message": {
+            "type": "string",
+            "example": "Migration started. Progress is logged to the server console."
+          },
+          "rootFolderId": {
+            "type": "string",
+            "example": "1a2b3c4d5e6f7g8h9i0j"
+          }
+        }
+      },
+      "InvalidParameterError": {
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_parameter"
+            ],
+            "example": "invalid_parameter"
+          },
+          "message": {
+            "type": "string",
+            "example": "Invalid sort value. Accepted: rating_desc, rating_asc, year_desc, year_asc, title_asc"
+          }
+        }
+      },
+      "NotFoundError": {
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "not_found"
+            ],
+            "example": "not_found"
+          },
+          "message": {
+            "type": "string",
+            "example": "No movie with id 999."
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": [
+          "error",
+          "message",
+          "errors"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "validation_failed"
+            ],
+            "example": "validation_failed"
+          },
+          "message": {
+            "type": "string",
+            "example": "One or more fields are invalid."
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          }
+        }
+      },
+      "FieldError": {
+        "type": "object",
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "The name of the field that failed validation.",
+            "example": "year"
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable description of the validation failure.",
+            "example": "Must be an integer between 1900 and 2030."
+          }
+        }
+      },
+      "DuplicateMovieError": {
+        "type": "object",
+        "required": [
+          "error",
+          "message",
+          "existing"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "duplicate_movie"
+            ],
+            "example": "duplicate_movie"
+          },
+          "message": {
+            "type": "string",
+            "example": "A movie with the same title, year, and rating already exists. To add genres to it, update the existing record."
+          },
+          "existing": {
+            "$ref": "#/components/schemas/Movie"
+          }
+        }
+      },
+      "GenreError": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Genre already exists."
+          }
+        }
+      },
+      "InternalServerError": {
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "internal_server_error"
+            ],
+            "example": "internal_server_error"
+          },
+          "message": {
+            "type": "string",
+            "example": "An unexpected error occurred."
+          }
+        }
+      }
+    }
+  }
+}
