@@ -69,9 +69,10 @@ interface LeaderboardProps {
   title: string;
   subtitle: string;
   loading?: boolean;
+  error?: boolean;
 }
 
-export function Leaderboard({ movies, title, subtitle, loading = false }: LeaderboardProps) {
+export function Leaderboard({ movies, title, subtitle, loading = false, error = false }: LeaderboardProps) {
   const [shown, setShown] = useState(5);
   const total = movies.length;
   const canMore = shown < total;
@@ -119,6 +120,10 @@ export function Leaderboard({ movies, title, subtitle, loading = false }: Leader
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
             Loading…
+          </div>
+        ) : error ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--accent-2)', fontSize: 13 }}>
+            ⚠ Could not load movies! Please try again later.
           </div>
         ) : total === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-2)', fontSize: 14 }}>

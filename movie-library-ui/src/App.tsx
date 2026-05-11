@@ -16,10 +16,12 @@ const DEFAULT_FILTERS: Filters = { genres: [], minRating: 0, yearMin: null, year
 
 export default function App() {
   // ── Data from API ───────────────────────────────────────────────────────────
-  const [movies, setMovies]   = useState<Movie[]>([]);
-  const [stats, setStats]     = useState<StatsResponse | null>(null);
-  const [genres, setGenres]   = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [movies, setMovies]         = useState<Movie[]>([]);
+  const [stats, setStats]           = useState<StatsResponse | null>(null);
+  const [genres, setGenres]         = useState<string[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [moviesError, setMoviesError] = useState(false);
+  const [statsError, setStatsError]   = useState(false);
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [techMode, setTechMode]   = useState(false);
@@ -29,22 +31,23 @@ export default function App() {
   const [selected, setSelected]   = useState<Movie | null>(null);
 
   // ── Initial load ─────────────────────────────────────────────────────────────
-  const loadAll = useCallback(async () => {
+  const loadAll = useCallback(() => {
     setLoading(true);
-    try {
-      const [moviesRes, statsRes, genresRes] = await Promise.all([
-        listMovies({ sort: 'rating_desc', limit: 100 }),
-        getStats(5),
-        getGenres(),
-      ]);
-      setMovies(moviesRes.data);
-      setStats(statsRes);
-      setGenres(genresRes);
-    } catch (err) {
-      console.error('Failed to load data:', err);
-    } finally {
-      setLoading(false);
-    }
+    setMoviesError(false);
+    setStatsError(false);
+    // Each fetch is independent — a failure in one won't prevent the others
+    // from rendering.
+    const movies = listMovies({ sort: 'rating_desc', limit: 100 })
+      .then(res => setMovies(res.data))
+      .catch(err => { console.error('Failed to load movies:', err); setMoviesError(true); });
+    const stats = getStats(5)
+      .then(setStats)
+      .catch(err => { console.error('Failed to load stats:', err); setStatsError(true); });
+    const genres = getGenres()
+      .then(setGenres)
+      .catch(err => console.error('Failed to load genres:', err));
+    // Keep the loading spinner up until all three settle.
+    void Promise.allSettled([movies, stats, genres]).then(() => setLoading(false));
   }, []);
 
   useEffect(() => { void loadAll(); }, [loadAll]);
@@ -125,6 +128,10 @@ export default function App() {
         {/* Stats strip */}
         {stats ? (
           <StatsStrip stats={stats} />
+        ) : statsError ? (
+          <div style={{ marginBottom: 20, padding: '12px 16px', borderRadius: 10, border: '1px solid rgba(214,60,46,.3)', background: 'rgba(214,60,46,.08)', color: 'var(--accent-2)', fontSize: 13 }}>
+            ⚠ Stats unavailable — could not reach the server.
+          </div>
         ) : (
           <div style={{ height: 100, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', fontSize: 13 }}>
             Loading stats…
@@ -151,6 +158,7 @@ export default function App() {
             title={leaderboardTitle}
             subtitle={leaderboardSubtitle}
             loading={loading}
+            error={moviesError}
           />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
