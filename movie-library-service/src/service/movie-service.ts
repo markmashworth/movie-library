@@ -6,6 +6,7 @@
 
 import { movieRepository } from '../repository/movie-repository.js';
 import { isValidGenre, getGenres } from './genre-service.js';
+import { logger } from '../logger.js';
 import type {
   Movie,
   MovieInput,
@@ -226,7 +227,7 @@ export type CreateMovieResult =
 export function createMovie(input: unknown): CreateMovieResult {
   const validated = validateMovieInput(input);
   if (!validated.ok) {
-    console.log(`Validation errors: ${JSON.stringify(validated.errors, null, 2)}`);
+    logger.warn({ errors: validated.errors }, 'createMovie validation failed');
     return { ok: false, kind: 'validation', errors: validated.errors };
   }
 

@@ -23,6 +23,7 @@ import { GoogleDriveClient } from '../clients/google-drive-client.js';
 import type { DriveEntry } from '../clients/google-drive-client.js';
 import { upsertMovie } from './movie-service.js';
 import { ensureGenre } from './genre-service.js';
+import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -69,8 +70,56 @@ const fileQueue = new PQueue({ concurrency: FILE_QUEUE_CONCURRENCY });
  * for completion can `await waitForIdle()`.
  */
 export function startMigration(rootFolderId: string): void {
-  console.log(`[migration] enqueueing root folder ${rootFolderId}`);
+  logger.info({ rootFolderId }, '[migration] enqueueing root folder');
   enqueueDirectory(rootFolderId);
+}
+
+/**
+ * Gracefully shuts down the migration queues.
+ *
+ * Pauses both queues so no new tasks are started, then waits up to
+ * `timeoutMs` for any in-flight tasks to complete. If the timeout fires,
+ * logs how many tasks remain so operators know what was abandoned.
+ *
+ * @param timeoutMs Maximum time (ms) to wait for queues to drain. Default 15 000.
+ */
+export async function shutdown(timeoutMs = 15_000): Promise<void> {
+  // Prevent the queues from picking up any further work while we drain.
+  directoryQueue.pause();
+  fileQueue.pause();
+
+  logger.info('[migration] shutdown requested — waiting for in-flight tasks to complete');
+
+  // Wait for both queues to finish their currently-running tasks.
+  const drainQueues = async (): Promise<void> => {
+    await directoryQueue.onIdle();
+    await fileQueue.onIdle();
+  };
+
+  let timedOut = false;
+
+  await Promise.race([
+    drainQueues(),
+    // Resolve the race after timeoutMs and flag that we ran out of time.
+    new Promise<void>((resolve) =>
+      setTimeout(() => {
+        timedOut = true;
+        resolve();
+      }, timeoutMs),
+    ),
+  ]);
+
+  if (timedOut) {
+    // Report how many queued (not yet started) tasks had to be abandoned.
+    const dirPending = directoryQueue.size + directoryQueue.pending;
+    const filePending = fileQueue.size + fileQueue.pending;
+    logger.warn(
+      { timeoutMs, dirPending, filePending },
+      '[migration] shutdown timed out — tasks left pending',
+    );
+  } else {
+    logger.info('[migration] all queues drained cleanly');
+  }
 }
 
 /**
@@ -105,7 +154,7 @@ async function processDirectory(folderId: string): Promise<void> {
   try {
     entries = await getDriveClient().listDirectory(folderId);
   } catch (err) {
-    console.error(`[migration] failed to list folder ${folderId}:`, err);
+    logger.error({ err, folderId }, '[migration] failed to list folder');
     return;
   }
 
@@ -115,8 +164,9 @@ async function processDirectory(folderId: string): Promise<void> {
     } else if (isJsonFile(entry.mimeType, entry.name)) {
       enqueueFile(entry.id, entry.name);
     } else {
-      console.log(
-        `[migration] skipping non-JSON file ${entry.name} (${entry.mimeType})`,
+      logger.info(
+        { fileName: entry.name, mimeType: entry.mimeType },
+        '[migration] skipping non-JSON file',
       );
     }
   }
@@ -146,7 +196,7 @@ async function processFile(fileId: string, fileName: string): Promise<void> {
   try {
     raw = await getDriveClient().getFileContent(fileId);
   } catch (err) {
-    console.error(`[migration] failed to download file ${fileName} (${fileId}):`, err);
+    logger.error({ err, fileId, fileName }, '[migration] failed to download file');
     return;
   }
 
@@ -154,16 +204,18 @@ async function processFile(fileId: string, fileName: string): Promise<void> {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    console.warn(
-      `[migration] skipping ${fileName} (${fileId}): invalid JSON — ${(err as Error).message}`,
+    logger.warn(
+      { fileId, fileName, err },
+      '[migration] skipping file — invalid JSON',
     );
     return;
   }
 
   const movieInput = toMovieInput(parsed);
   if (!movieInput) {
-    console.warn(
-      `[migration] skipping ${fileName} (${fileId}): payload is not an object with the expected shape`,
+    logger.warn(
+      { fileId, fileName },
+      '[migration] skipping file — payload is not an object with the expected shape',
     );
     return;
   }
@@ -186,23 +238,28 @@ async function processFile(fileId: string, fileName: string): Promise<void> {
   // concurrency note at the top of movie-repository.ts.
   const result = upsertMovie(movieInput);
   if (!result.ok) {
-    const reasons = result.errors.map((e) => `${e.field}: ${e.message}`).join('; ');
-    console.warn(`[migration] skipping ${fileName} (${fileId}): ${reasons}`);
+    logger.warn(
+      { fileId, fileName, errors: result.errors },
+      '[migration] skipping file — validation failed',
+    );
     return;
   }
 
   const { movie, created, addedGenres } = result;
   if (created) {
-    console.log(
-      `[migration] created "${movie.title}" (id=${movie.id}, genres=[${movie.genres.join(', ')}])`,
+    logger.info(
+      { movieId: movie.id, title: movie.title, genres: movie.genres },
+      '[migration] created movie',
     );
   } else if (addedGenres.length > 0) {
-    console.log(
-      `[migration] merged genres [${addedGenres.join(', ')}] into "${movie.title}" (id=${movie.id})`,
+    logger.info(
+      { movieId: movie.id, title: movie.title, addedGenres },
+      '[migration] merged genres into existing movie',
     );
   } else {
-    console.log(
-      `[migration] no-op for "${movie.title}" (id=${movie.id}) — already had all genres`,
+    logger.info(
+      { movieId: movie.id, title: movie.title },
+      '[migration] no-op — movie already had all genres',
     );
   }
 }
