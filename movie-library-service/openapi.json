@@ -219,6 +219,20 @@
         ],
         "summary": "Get catalog statistics",
         "description": "Returns aggregate statistics over the entire movie catalog. No filters\nare applied \u2014 the response always reflects all movies in the store.\n",
+        "parameters": [
+          {
+            "name": "top_genres_limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of genres to include in `top_genres`. Must be an integer between 1 and 100. Defaults to 5.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 5
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Aggregate statistics.",
@@ -226,6 +240,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Stats"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A query parameter is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidParameterError"
                 }
               }
             }
@@ -579,7 +603,7 @@
           },
           "top_genres": {
             "type": "array",
-            "description": "All genres, sorted by movie count descending.",
+            "description": "Genres sorted by movie count descending, limited to `top_genres_limit` entries (default 5, max 100).",
             "items": {
               "$ref": "#/components/schemas/GenreStat"
             }

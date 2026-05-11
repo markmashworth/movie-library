@@ -113,10 +113,14 @@ export async function createMovie(input: MovieInput, idempotencyKey?: string): P
 
 /**
  * Pre-aggregated catalog statistics (total, avg rating, genres, years, etc.).
- * Always reflects the full catalog — no filters accepted.
+ * Always reflects the full catalog — no movie filters accepted.
+ *
+ * @param topGenresLimit - How many entries to request in `top_genres`
+ *   (1–100). Defaults to 5 on the server when omitted.
  */
-export async function getStats(): Promise<StatsResponse> {
-  return request<StatsResponse>('/movies/stats');
+export async function getStats(topGenresLimit?: number): Promise<StatsResponse> {
+  const qs = buildQuery({ top_genres_limit: topGenresLimit });
+  return request<StatsResponse>(`/movies/stats${qs}`);
 }
 
 /**

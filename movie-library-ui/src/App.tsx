@@ -34,7 +34,7 @@ export default function App() {
     try {
       const [moviesRes, statsRes, genresRes] = await Promise.all([
         listMovies({ sort: 'rating_desc', limit: 100 }),
-        getStats(),
+        getStats(5),
         getGenres(),
       ]);
       setMovies(moviesRes.data);
@@ -105,7 +105,7 @@ export default function App() {
     // Optimistically prepend; re-sort by rating
     setMovies(ms => [...ms, movie].sort((a, b) => b.rating - a.rating));
     // Refresh stats so the tiles update
-    const freshStats = await getStats();
+    const freshStats = await getStats(5);
     setStats(freshStats);
     setSelected(movie);
   };

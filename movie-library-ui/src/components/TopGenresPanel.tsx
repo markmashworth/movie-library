@@ -5,7 +5,7 @@ interface TopGenresPanelProps {
 }
 
 export function TopGenresPanel({ stats }: TopGenresPanelProps) {
-  const top5 = stats.top_genres.slice(0, 5);
+  const top5 = stats.top_genres;
   const maxCount = top5[0]?.count ?? 1;
 
   return (

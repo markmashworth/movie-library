@@ -61,8 +61,24 @@ moviesRouter.get('/', (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // GET /movies/stats
 // ---------------------------------------------------------------------------
-moviesRouter.get('/stats', (_req: Request, res: Response) => {
-  res.json(getStats());
+moviesRouter.get('/stats', (req: Request, res: Response) => {
+  const { top_genres_limit } = req.query;
+
+  let topGenresLimit: number | undefined;
+  if (top_genres_limit !== undefined) {
+    const raw = String(top_genres_limit);
+    const parsed = parseInt(raw, 10);
+    if (!Number.isInteger(parsed) || String(parsed) !== raw) {
+      res.status(400).json({
+        error: 'invalid_parameter',
+        message: 'top_genres_limit must be an integer.',
+      });
+      return;
+    }
+    topGenresLimit = parsed;
+  }
+
+  res.json(getStats({ topGenresLimit }));
 });
 
 // ---------------------------------------------------------------------------

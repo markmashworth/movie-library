@@ -262,7 +262,20 @@ export function upsertMovie(input: unknown): UpsertMovieResult {
 // getStats
 // ---------------------------------------------------------------------------
 
-export function getStats(): Stats {
+export interface StatsOptions {
+  /** How many entries to include in `top_genres`. Default: 5. Max: 100. */
+  topGenresLimit?: number;
+}
+
+const TOP_GENRES_DEFAULT = 5;
+const TOP_GENRES_MAX = 100;
+
+export function getStats(options: StatsOptions = {}): Stats {
+  const limit = Math.min(
+    Math.max(options.topGenresLimit ?? TOP_GENRES_DEFAULT, 1),
+    TOP_GENRES_MAX,
+  );
+
   const all = movieRepository.findAll();
 
   if (all.length === 0) {
@@ -297,6 +310,7 @@ export function getStats(): Stats {
   const genre_count = genreCounts.size;
   const top_genres = Array.from(genreCounts.entries())
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit)
     .map(([name, count]) => ({ name, count }));
 
   const yearMap = new Map<number, Movie[]>();

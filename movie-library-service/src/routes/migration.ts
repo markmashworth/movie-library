@@ -12,6 +12,9 @@ import type { Request, Response } from 'express';
 import { startMigration } from '../service/migration-service.js';
 import { idempotency, getSharedIdempotencyService } from 'express-idempotency';
 
+/** Valid Google Drive folder ID: 10–128 alphanumeric, hyphen, or underscore characters. */
+const FOLDER_ID_REGEX = /^[A-Za-z0-9_-]{10,128}$/;
+
 export const migrationRouter = Router();
 
 // ---------------------------------------------------------------------------
@@ -25,10 +28,11 @@ migrationRouter.post('/', idempotency(), (req: Request, res: Response) => {
   const body = (req.body ?? {}) as { rootFolderId?: unknown };
   const rootFolderId = body.rootFolderId;
 
-  if (typeof rootFolderId !== 'string' || rootFolderId.length === 0) {
+  if (typeof rootFolderId !== 'string' || !FOLDER_ID_REGEX.test(rootFolderId)) {
     res.status(400).json({
       error: 'invalid_parameter',
-      message: '`rootFolderId` is required and must be a non-empty string.',
+      message:
+        '`rootFolderId` must be a string of 10–128 alphanumeric, hyphen, or underscore characters.',
     });
     return;
   }

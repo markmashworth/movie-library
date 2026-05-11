@@ -2,9 +2,33 @@
  * In-memory persistence layer for the movie catalog.
  *
  * Identity model: a movie is uniquely identified by the tuple
- *   (title, year, normalized rating)
+ *   (canonicalTitle, year, normalized rating)
  * Two records sharing that tuple but differing only in genre are considered
  * the same movie, and their genre sets are merged.
+ *
+ * Title canonicalization
+ * ----------------------
+ * Before a title is used in the identity key it is passed through
+ * `canonicalTitle()`, which applies the following rules in order:
+ *   1. Unicode NFKC normalization (e.g. collapses compatibility characters).
+ *   2. Lowercase (case-insensitive deduplication).
+ *   3. Collapse any run of whitespace to a single ASCII space.
+ *   4. Trim leading and trailing whitespace.
+ *
+ * The stored `movie.title` is always the original user-supplied string —
+ * canonicalization is applied only when building the identity key.
+ *
+ * Change in dedupe behavior vs. the previous implementation
+ * ----------------------------------------------------------
+ * The identity key previously used the raw title string, making matching
+ * case-sensitive ("Alien" and "alien" were treated as different movies).
+ * It is now case-insensitive — "Alien" and "alien" will deduplicate.
+ *
+ * Diacritics remain significant: NFKC normalization does not strip accent
+ * marks, so "Amelie" and "Amélie" are still treated as distinct movies.
+ * If fully diacritic-insensitive matching is ever needed it can be layered
+ * on top by adding a Unicode decomposition + diacritic-strip step after
+ * NFKC normalization.
  *
  * Data structures:
  *   byId       — Map<id, Movie>          : the single source of truth.
@@ -57,10 +81,28 @@ function normalizeRating(rating: number): number {
   return Math.round(rating * 10) / 10;
 }
 
+/**
+ * Returns a canonical form of `title` used exclusively for identity-key
+ * construction. The stored title is never mutated.
+ *
+ * Rules (applied in order):
+ *   1. Unicode NFKC normalization.
+ *   2. Lowercase.
+ *   3. Collapse runs of whitespace to a single space.
+ *   4. Trim leading/trailing whitespace.
+ */
+function canonicalTitle(title: string): string {
+  return title
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function makeIdentityKey(title: string, year: number, normalizedRating: number): string {
   // Pipe is safe because pipes are not common in movie titles. If they were,
   // any unambiguous separator (e.g. ) would do.
-  return `${title}|${year}|${normalizedRating.toFixed(1)}`;
+  return `${canonicalTitle(title)}|${year}|${normalizedRating.toFixed(1)}`;
 }
 
 // ---------------------------------------------------------------------------
