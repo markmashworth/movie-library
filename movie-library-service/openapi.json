@@ -504,9 +504,9 @@
           },
           "year": {
             "type": "integer",
-            "minimum": 1900,
-            "maximum": 2030,
-            "description": "Release year.",
+            "minimum": 1888,
+            "maximum": 2029,
+            "description": "Release year. Maximum is currentYear + 3 (2029 as of the current spec generation).",
             "example": 2014
           },
           "rating": {
@@ -874,7 +874,7 @@
           "message": {
             "type": "string",
             "description": "Human-readable description of the validation failure.",
-            "example": "Must be an integer between 1900 and 2030."
+            "example": "Must be an integer between 1888 and 2029."
           }
         }
       },

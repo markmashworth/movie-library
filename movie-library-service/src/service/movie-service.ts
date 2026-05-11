@@ -23,6 +23,12 @@ import type {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const MIN_YEAR = 1888;
+
+function getMaxYear(): number {
+  return new Date().getFullYear() + 3;
+}
+
 function sortMovies(movies: Movie[], sort: SortOrder): Movie[] {
   return [...movies].sort((a, b) => {
     switch (sort) {
@@ -76,7 +82,21 @@ export function listMovies(params: ListMoviesParams): ListMoviesResult {
       ? movieRepository.findByGenres(genreFilter)
       : movieRepository.findAll();
 
-  // 2. Apply remaining filters.
+  // 2. Apply remaining filters in order of descending selectivity so that each
+  //    subsequent filter operates on the smallest possible set.
+  //
+  //    Order rationale:
+  //    a) Genre — already handled above at the repository level via the byGenre
+  //       secondary index; no per-movie iteration needed, so it's free.
+  //    b) `q` (title text search) — typically the most selective filter: a
+  //       specific substring like "alien" matches only a handful of titles.
+  //       It's also the most expensive per item (toLowerCase + includes), so
+  //       running it first shrinks the set that cheaper filters must scan.
+  //    c) `min_rating` — a high threshold (e.g. 7.0) eliminates a substantial
+  //       fraction of the catalog in a single cheap numeric comparison.
+  //    d) `year_min` / `year_max` — year ranges tend to be broad (spanning
+  //       multiple decades), making them the least selective filter. They are
+  //       merged into a single pass to avoid allocating an intermediate array.
   if (q) {
     const query = q.toLowerCase();
     candidates = candidates.filter(m => m.title.toLowerCase().includes(query));
@@ -84,11 +104,12 @@ export function listMovies(params: ListMoviesParams): ListMoviesResult {
   if (min_rating > 0) {
     candidates = candidates.filter(m => m.rating >= min_rating);
   }
-  if (year_min !== undefined) {
-    candidates = candidates.filter(m => m.year >= year_min);
-  }
-  if (year_max !== undefined) {
-    candidates = candidates.filter(m => m.year <= year_max);
+  if (year_min !== undefined || year_max !== undefined) {
+    candidates = candidates.filter(
+      m =>
+        (year_min === undefined || m.year >= year_min) &&
+        (year_max === undefined || m.year <= year_max),
+    );
   }
 
   // 3. Sort — when a text query is present, rank by match quality first, then
@@ -165,10 +186,8 @@ function validateMovieInput(input: unknown): ValidateResult {
   const year = raw['year'];
   if (year === undefined || year === null) {
     errors.push({ field: 'year', message: 'Year is required.' });
-  } else if (typeof year !== 'number' || !Number.isInteger(year)) {
-    errors.push({ field: 'year', message: 'Must be an integer between 1900 and 2030.' });
-  } else if (year < 1900 || year > 2030) {
-    errors.push({ field: 'year', message: 'Must be an integer between 1900 and 2030.' });
+  } else if (typeof year !== 'number' || !Number.isInteger(year) || year < MIN_YEAR || year > getMaxYear()) {
+    errors.push({ field: 'year', message: `Must be an integer between ${MIN_YEAR} and ${getMaxYear()}.` });
   }
 
   // rating

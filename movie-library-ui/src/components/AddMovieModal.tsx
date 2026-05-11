@@ -117,7 +117,8 @@ export function AddMovieModal({ open, onClose, onAdd, onGenreCreated, genres, in
     setError('');
     if (!title.trim()) return setError('Title is required.');
     const y = parseInt(year);
-    if (!y || y < 1900 || y > 2030) return setError('Enter a valid year (1900–2030).');
+    const maxYear = new Date().getFullYear() + 3;
+    if (!y || y < 1888 || y > maxYear) return setError(`Enter a valid year (1888–${maxYear}).`);
     const r = parseFloat(rating);
     if (isNaN(r) || r < 0 || r > 10) return setError('Rating must be between 0 and 10.');
     if (selectedGenres.length === 0) return setError('Pick at least one genre.');
@@ -191,8 +192,8 @@ export function AddMovieModal({ open, onClose, onAdd, onGenreCreated, genres, in
                 onChange={e => setYear(e.target.value)}
                 placeholder="2025"
                 type="number"
-                min="1900"
-                max="2030"
+                min="1888"
+                max={new Date().getFullYear() + 3}
                 style={modalInput}
               />
             </Field>

@@ -204,8 +204,8 @@ export function FilterBar({ filters, setFilters, genres, resultCount, totalCount
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="number"
-              min="1900"
-              max="2030"
+              min="1888"
+              max={new Date().getFullYear() + 3}
               placeholder="From"
               value={filters.yearMin ?? ''}
               onChange={e => setFilters(f => ({ ...f, yearMin: e.target.value ? parseInt(e.target.value) : null }))}
@@ -214,8 +214,8 @@ export function FilterBar({ filters, setFilters, genres, resultCount, totalCount
             <span style={{ color: 'var(--text-3)' }}>—</span>
             <input
               type="number"
-              min="1900"
-              max="2030"
+              min="1888"
+              max={new Date().getFullYear() + 3}
               placeholder="To"
               value={filters.yearMax ?? ''}
               onChange={e => setFilters(f => ({ ...f, yearMax: e.target.value ? parseInt(e.target.value) : null }))}
