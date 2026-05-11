@@ -12,6 +12,16 @@ const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 // Public types
 // ---------------------------------------------------------------------------
 
+/** Constructor options for {@link GoogleDriveClient}. */
+export interface GoogleDriveClientOptions {
+  /**
+   * Maximum number of retry attempts on transient failures.
+   * Passed directly to gaxios `retryConfig.retries`.
+   * @default 3
+   */
+  retries?: number;
+}
+
 export interface DriveFile {
   kind: 'file';
   id: string;
@@ -47,6 +57,12 @@ export type DriveEntry = DriveFile | DriveFolder;
  *   GOOGLE_CLIENT_SECRET  – OAuth2 client secret
  *   GOOGLE_REDIRECT_URI   – OAuth2 redirect URI registered for the client
  *   GOOGLE_REFRESH_TOKEN  – Long-lived refresh token from the consent flow
+ *
+ * **Retry policy** (handled by gaxios):
+ *   - Retried status codes: 429, 500, 502, 503, 504
+ *   - Network failures (no response) are retried via `noResponseRetries`
+ *   - Backoff: exponential, with a `Retry-After` header honoured on 429
+ *   - Configurable via the `retries` constructor option (default: 3)
  */
 export class GoogleDriveClient {
   private readonly drive: drive_v3.Drive;
@@ -68,8 +84,10 @@ export class GoogleDriveClient {
    * - `GOOGLE_REFRESH_TOKEN`
    *
    * Throws if any required variable is absent.
+   *
+   * @param options - Optional {@link GoogleDriveClientOptions} (e.g. `retries`).
    */
-  static fromEnv(): GoogleDriveClient {
+  static fromEnv(options: GoogleDriveClientOptions = {}): GoogleDriveClient {
     const vars = {
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
@@ -96,6 +114,25 @@ export class GoogleDriveClient {
     oauth2Client.setCredentials({
       refresh_token: vars.GOOGLE_REFRESH_TOKEN!,
       scope: DRIVE_SCOPES.join(' '),
+    });
+
+    const retries = options.retries ?? 3;
+
+    google.options({
+      retryConfig: {
+        retries,
+        noResponseRetries: retries,
+        retryableStatusCodes: [429, 500, 502, 503, 504],
+        httpMethodsToRetry: ['GET'],
+        retryBackoff: async (err: unknown, defaultDelay: number) => {
+          const retryAfter = (err as any)?.response?.headers?.['retry-after'];
+          const ms =
+            retryAfter != null && Number.isFinite(Number(retryAfter)) && Number(retryAfter) > 0
+              ? Number(retryAfter) * 1_000
+              : defaultDelay;
+          await new Promise((resolve) => setTimeout(resolve, ms));
+        },
+      },
     });
 
     return new GoogleDriveClient(google.drive({ version: 'v3', auth: oauth2Client }));

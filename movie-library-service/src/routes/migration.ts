@@ -10,7 +10,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { startMigration } from '../service/migration-service.js';
-import { idempotency } from '../middleware/idempotency.js';
+import { idempotency, getSharedIdempotencyService } from 'express-idempotency';
 
 export const migrationRouter = Router();
 
@@ -18,6 +18,10 @@ export const migrationRouter = Router();
 // POST /migration
 // ---------------------------------------------------------------------------
 migrationRouter.post('/', idempotency(), (req: Request, res: Response) => {
+  // The middleware always calls next() — even when replaying a cached response.
+  // Guard here so we don't kick off a duplicate migration on a replayed request.
+  if (getSharedIdempotencyService().isHit(req)) return;
+
   const body = (req.body ?? {}) as { rootFolderId?: unknown };
   const rootFolderId = body.rootFolderId;
 

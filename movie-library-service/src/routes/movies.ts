@@ -11,7 +11,7 @@ import type { Request, Response } from 'express';
 import { listMovies, getMovie, createMovie, getStats } from '../service/movie-service.js';
 import type { ListMoviesParams } from '../types.js';
 import type { SortOrder } from '../types.js';
-import { idempotency } from '../middleware/idempotency.js';
+import { idempotency, getSharedIdempotencyService } from 'express-idempotency';
 
 export const moviesRouter = Router();
 
@@ -96,6 +96,10 @@ moviesRouter.get('/:id', (req: Request, res: Response) => {
 // POST /movies
 // ---------------------------------------------------------------------------
 moviesRouter.post('/', idempotency(), (req: Request, res: Response) => {
+  // The middleware always calls next() — even when replaying a cached response.
+  // Guard here so we don't create a duplicate movie on a replayed request.
+  if (getSharedIdempotencyService().isHit(req)) return;
+
   const result = createMovie(req.body);
 
   if (!result.ok) {

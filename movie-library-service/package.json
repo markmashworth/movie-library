@@ -10,7 +10,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "scrape:drive": "node scripts/exploratory-analysis.js",
+    "eda": "node scripts/exploratory-data-analysis.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start:local": "tsx --no-deprecation --env-file=.env.local index.ts",
     "seed": "node scripts/seed.js"
@@ -21,6 +21,7 @@
   "description": "",
   "dependencies": {
     "express": "^5.2.1",
+    "express-idempotency": "^2.0.0",
     "googleapis": "^171.4.0",
     "p-queue": "^8.0.1",
     "pino": "^9.0.0",
