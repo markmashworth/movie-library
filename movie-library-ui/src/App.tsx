@@ -97,7 +97,11 @@ export default function App() {
 
   // ── Add a movie via the API, then refresh stats ───────────────────────────────
   const handleAdd = async (input: MovieInput) => {
-    const movie = await createMovie(input);
+    // Generate a fresh key for each submission so the server can deduplicate
+    // accidental double-sends (e.g. two rapid clicks) without affecting
+    // independent submissions made later.
+    const idempotencyKey = crypto.randomUUID();
+    const movie = await createMovie(input, idempotencyKey);
     // Optimistically prepend; re-sort by rating
     setMovies(ms => [...ms, movie].sort((a, b) => b.rating - a.rating));
     // Refresh stats so the tiles update

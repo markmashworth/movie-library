@@ -11,6 +11,7 @@ import type { Request, Response } from 'express';
 import { listMovies, getMovie, createMovie, getStats } from '../service/movie-service.js';
 import type { ListMoviesParams } from '../types.js';
 import type { SortOrder } from '../types.js';
+import { idempotency } from '../middleware/idempotency.js';
 
 export const moviesRouter = Router();
 
@@ -94,7 +95,7 @@ moviesRouter.get('/:id', (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // POST /movies
 // ---------------------------------------------------------------------------
-moviesRouter.post('/', (req: Request, res: Response) => {
+moviesRouter.post('/', idempotency(), (req: Request, res: Response) => {
   const result = createMovie(req.body);
 
   if (!result.ok) {

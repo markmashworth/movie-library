@@ -164,6 +164,9 @@
         ],
         "summary": "Create a movie",
         "description": "Adds a new movie to the catalog. The `(title, year, rating)` triple must\nbe unique; if a matching record already exists a **409 Conflict** is\nreturned together with the existing record.\n\nRatings are stored at one decimal place of precision\n(`Math.round(rating \u00d7 10) / 10`).\n",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -362,6 +365,9 @@
         ],
         "summary": "Start a Google Drive migration",
         "description": "Triggers a background migration that walks a Google Drive folder tree,\ndownloads JSON movie files, and upserts them into the catalog.\n\nThe endpoint returns immediately with **202 Accepted**; processing\ncontinues asynchronously. Progress and errors are written to the server\nconsole.\n\nUpsert semantics: if a movie with the same `(title, year, rating)`\nidentity already exists, its genre list is merged rather than replaced.\n\n**Environment variables required for Google Drive access:**\n`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`,\n`GOOGLE_REFRESH_TOKEN`.\n",
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -398,6 +404,18 @@
     }
   },
   "components": {
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "description": "An opaque client-generated key that makes this request idempotent (e.g. a UUID v4). When supplied, the server caches the first response for 24 hours and replays it verbatim for any subsequent request that carries the same key — regardless of request body. This allows clients to safely retry POST requests without the risk of double-processing. Server errors (5xx) are never cached.",
+        "schema": {
+          "type": "string",
+          "example": "a8098c1a-f86e-11da-bd1a-00112444be1e"
+        }
+      }
+    },
     "schemas": {
       "Movie": {
         "type": "object",

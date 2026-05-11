@@ -96,11 +96,18 @@ export async function getMovie(id: number): Promise<Movie> {
 /**
  * Add a new movie to the catalog via POST /v1/movies.
  * Throws on validation failures (422) with the API error message.
+ *
+ * Pass an `idempotencyKey` (e.g. a UUID generated when the form submission
+ * begins) to enable server-side deduplication: the server will replay the
+ * first response for any subsequent request that carries the same key within
+ * a 24-hour window. Generate the key once per logical submission attempt and
+ * reuse it on retries — do not generate a fresh key on every retry.
  */
-export async function createMovie(input: MovieInput): Promise<Movie> {
+export async function createMovie(input: MovieInput, idempotencyKey?: string): Promise<Movie> {
   return request<Movie>('/movies', {
     method: 'POST',
     body: JSON.stringify(input),
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
   });
 }
 

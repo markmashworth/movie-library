@@ -10,13 +10,14 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { startMigration } from '../service/migration-service.js';
+import { idempotency } from '../middleware/idempotency.js';
 
 export const migrationRouter = Router();
 
 // ---------------------------------------------------------------------------
 // POST /migration
 // ---------------------------------------------------------------------------
-migrationRouter.post('/', (req: Request, res: Response) => {
+migrationRouter.post('/', idempotency(), (req: Request, res: Response) => {
   const body = (req.body ?? {}) as { rootFolderId?: unknown };
   const rootFolderId = body.rootFolderId;
 
