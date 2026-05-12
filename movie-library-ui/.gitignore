@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 *.bak
 *.bak[0-9]*
+
+playwright-report/**
+test-results/**
