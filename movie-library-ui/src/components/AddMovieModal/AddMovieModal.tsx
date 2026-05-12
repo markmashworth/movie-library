@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { MovieInput } from '../../types';
-import { ghostBtn, primaryBtn, modalInput } from '../Atoms/Atoms';
+import { ghostBtn, primaryBtn, modalInput } from '../Atoms/Atoms.styles';
 import { createGenre } from '../../movie-library-service';
 
 interface AddMovieModalProps {

@@ -35,7 +35,7 @@ const DEFAULT_GENRES = [
 /** Returns a freshly-seeded genreRepository by resetting the module cache. */
 async function freshRepo(): Promise<RepoModule['genreRepository']> {
   vi.resetModules();
-  const mod = await import('./genre-repository.js') as RepoModule;
+  const mod = await import('./genre-repository.js');
   return mod.genreRepository;
 }
 

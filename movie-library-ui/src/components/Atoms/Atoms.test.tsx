@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { Star, Poster, ghostBtn, primaryBtn, modalInput } from './Atoms'
+import { Star, Poster } from './Atoms'
+import { ghostBtn, primaryBtn, modalInput } from './Atoms.styles'
 import type { Movie } from '../../types'
 
 const movie: Movie = { id: 1, title: 'The Matrix', year: 1999, rating: 8.7, genres: ['Action'] }

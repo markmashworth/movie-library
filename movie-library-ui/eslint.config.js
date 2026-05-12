@@ -18,5 +18,11 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Calling setState inside a useEffect (including via a callback) is a
+      // legitimate and common pattern for data-fetching and form-reset logic.
+      // The rule produces false positives for these cases.
+      'react-hooks/set-state-in-effect': 'off',
+    },
   },
 ])

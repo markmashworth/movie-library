@@ -28,7 +28,7 @@ type MovieServiceModule = typeof import('./movie-service.js');
 /** Returns a fresh service module backed by empty repos and the default genre list. */
 async function freshService(): Promise<MovieServiceModule> {
   vi.resetModules();
-  return import('./movie-service.js') as Promise<MovieServiceModule>;
+  return import('./movie-service.js');
 }
 
 // Valid base input used across many tests — all fields are correct.

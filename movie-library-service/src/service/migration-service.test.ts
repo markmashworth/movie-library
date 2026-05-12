@@ -67,10 +67,10 @@ beforeEach(async () => {
   mockListDirectory.mockReset();
   mockGetFileContent.mockReset();
 
-  migration   = await import('./migration-service.js')          as MigrationModule;
-  movieRepo   = await import('../repository/movie-repository.js') as MovieRepoModule;
-  genreService = await import('./genre-service.js')              as GenreServiceModule;
-  const logMod = await import('../logger.js')                    as LoggerModule;
+  migration   = await import('./migration-service.js');
+  movieRepo   = await import('../repository/movie-repository.js');
+  genreService = await import('./genre-service.js');
+  const logMod = await import('../logger.js');
   logger = logMod.logger;
   vi.clearAllMocks();
 });

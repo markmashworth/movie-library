@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Movie } from '../../types';
-import { Poster, Star, ghostBtn, primaryBtn } from '../Atoms/Atoms';
+import { Poster, Star } from '../Atoms/Atoms';
+import { ghostBtn, primaryBtn } from '../Atoms/Atoms.styles';
 
 function RankNumber({ n }: { n: number }) {
   return (

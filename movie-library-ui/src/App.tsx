@@ -68,7 +68,7 @@ export default function App() {
       year_max: filters.yearMax ?? undefined,
     };
     void listMovies(params).then(r => setMovies(r.data));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [techMode, filters]);
 
   // ── Total unfiltered count (from stats) for FilterBar display ────────────────

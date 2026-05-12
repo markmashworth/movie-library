@@ -19,7 +19,7 @@ type ServiceModule = typeof import('./genre-service.js');
 /** Returns a fresh service module backed by a clean, default-seeded repository. */
 async function freshService(): Promise<ServiceModule> {
   vi.resetModules();
-  return import('./genre-service.js') as Promise<ServiceModule>;
+  return import('./genre-service.js');
 }
 
 // ---------------------------------------------------------------------------

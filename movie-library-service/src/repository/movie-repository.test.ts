@@ -22,7 +22,7 @@ type RepoModule = typeof import('./movie-repository.js');
 
 async function freshModule(): Promise<RepoModule> {
   vi.resetModules();
-  return import('./movie-repository.js') as Promise<RepoModule>;
+  return import('./movie-repository.js');
 }
 
 /** Minimal valid MovieInput used as a base across tests. */
