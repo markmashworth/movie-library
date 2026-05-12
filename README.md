@@ -13,53 +13,25 @@ artifacts/               Wireframes and protoype used to ideate on the UI design
 
 ## Running the backend
 
-Install node. See `.nvmrc` for the current version. Use `nvm use` to switch automatically.
-
-```bash
-cd movie-library-service
-npm install
-```
-
-Create `.env.local` in `movie-library-service/` with the following variables (only required if running a remote migration!):
-
-```
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GOOGLE_REDIRECT_URI=...
-GOOGLE_REFRESH_TOKEN=...
-```
-
-Then start the server:
-
-```bash
-npm run start:local
-```
-
-The service listens on `http://localhost:8080`. Swagger API docs are available at [`/docs`](http://localhost:8080/docs).
-
-### Seeding / Migrating data
-
-To pull the Google Drive catalogue into the running service, either run the seed script, which uses some locally stored data:
-
-```bash
-# from movie-library-service/
-npm run seed
-```
-
-or call the migration endpoint directly to fetch remote data from Google Drive:
-
-```bash
-curl -X POST http://localhost:8080/v1/migration \
-  -H 'Content-Type: application/json' \
-  -d '{"rootFolderId":"1Z-Bqt69UgrGkwo0ArjHaNrA7uUmUm2r6"}'
-```
+See instructions in the `movie-library-service` [README.md](./movie-library-service/README.md) for instructions.
 
 ## Running the frontend
 
+See instructions in the `movie-library-ui` [README.md](./movie-library-ui/README.md) for instructions.
+
+## Running the CI pipeline
+
+Install dependencies:
+
 ```bash
-cd movie-library-ui
-npm install
-npm run dev
+brew install act
+brew install gh
+```
+
+Run the pipeline:
+
+```bash
+act -s GITHUB_TOKEN="$(gh auth token)"
 ```
 
 ## Design decisions

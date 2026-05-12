@@ -4,15 +4,66 @@ Express + TypeScript REST API that manages a personal movie catalog and supports
 
 ## Running locally
 
-```bash
-# Install dependencies
-npm install
+Install node if not already installed.
 
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create `.env.local` in `movie-library-service/` with the following variables (only required if running a remote migration!):
+
+```
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=...
+GOOGLE_REFRESH_TOKEN=...
+```
+
+Start the app:
+
+```bash
 # Start the server (reads credentials from .env.local)
 npm run start:local
 ```
 
 The API is available at `http://localhost:8080/api/v1` and Swagger UI at `http://localhost:8080/docs`.
+
+The service listens on `http://localhost:8080`. Swagger API docs are available at [`/docs`](http://localhost:8080/docs).
+
+### Seeding / Migrating data
+
+To pull a movie catalogue into the running service, either run the seed script, which uses some locally stored data:
+
+```bash
+npm run seed
+```
+
+or call the migration endpoint directly to fetch remote data from Google Drive:
+
+```bash
+curl -X POST http://localhost:8080/v1/migration \
+  -H 'Content-Type: application/json' \
+  -d '{"rootFolderId":"1Z-Bqt69UgrGkwo0ArjHaNrA7uUmUm2r6"}'
+```
+
+---
+
+## Running tests
+
+Tests use [Vitest](https://vitest.dev/) with supertest for HTTP-level integration tests. Test files live alongside their source modules in `src/` (e.g. `*.test.ts`).
+
+```bash
+# Single run
+npm test
+
+# Watch mode (re-runs on file changes)
+npm run test:watch
+
+# Single run with coverage report
+npm run test:coverage
+```
 
 ---
 
