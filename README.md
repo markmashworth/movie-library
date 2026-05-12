@@ -1,6 +1,6 @@
 # Movie Library
 
-A Netflix take-home project: an in-memory movie library service with a companion React UI. The service exposes a REST API for browsing and managing movies, and includes a migration endpoint that pulls an existing catalogue from Google Drive into the in-memory store.
+A Netflix take-home project: an in-memory movie library service with a React-based UI. The service exposes a REST API for browsing and managing movies, and includes a migration endpoint that pulls an existing catalogue from Google Drive into the in-memory store.
 
 ## Repo layout
 

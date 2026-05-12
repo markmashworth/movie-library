@@ -130,8 +130,48 @@ This project was built as a take-home interview exercise. Several intentional si
 - There is no persistent retry mechanism. Failed file downloads or parse errors are simply logged and skipped; there is no dead-letter queue (DLQ) to capture them for later inspection or replay.
 - Scaling to multiple service instances would require external coordination — the current design has no concept of distributed locking or task ownership.
 
-In production, the migration would be modelled as a durable workflow backed by a distributed message broker (e.g. SQS + Lambda, or a queue-backed worker fleet). Each folder and each file would become a discrete message, giving the system automatic retries, configurable back-off, per-message visibility timeouts, and a DLQ for poison-pill items that consistently fail.
+In production, the migration would be modelled as a durable workflow backed by a distributed message broker (e.g. a queue-backed worker fleet). Each folder and each file would become a discrete message, giving the system automatic retries, configurable back-off, per-message visibility timeouts, and a DLQ for poison-pill items that consistently fail.
 
 **No authentication or authorisation** — all endpoints are open. A real service would require OAuth2 or API key validation before allowing writes.
 
 **Single process** — there is no clustering, load balancing, or horizontal scaling.
+
+## Scripts
+
+The directory `/scripts` contains scripts for exploratory data analysis.
+
+`exploratory-data-analysis.js` will scrape the Google Drive and output all JSON files into `/scripts/data/movie.csv`.
+
+It will expect a `credentials.json` containing the following structure:
+```json
+{
+  "installed": {
+    "client_id": "<client_id>.apps.googleusercontent.com",
+    "project_id": "<project_id>",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_secret": "<client_secret>",
+    "redirect_uris": [
+      "<allowlisted_redirect_uri_from_project>"
+    ]
+  }
+}
+
+```
+
+and `token.json` with the following structure:
+
+```json
+{
+  "access_token": "<access_token>",
+  "refresh_token": "<refresh_token>",
+  "scope": "https://www.googleapis.com/auth/drive.readonly",
+  "token_type": "Bearer",
+  "refresh_token_expires_in": <expiration_time>,
+  "expiry_date": <expiry_date>
+}
+```
+
+`seed.js` will take the `movies.csv` and insert entries into the service. This can be used to sidestep remote calls
+to Google Drive for local development.
