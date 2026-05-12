@@ -45,8 +45,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as ApiErrorResponse;
-    // Some endpoints return { error } (genres), others { message } (movies)
-    const msg = body.error ?? body.message ?? `HTTP ${res.status}`;
+    // Prefer the human-readable message; fall back to the error code or status.
+    const msg = body.message ?? body.error ?? `HTTP ${res.status}`;
     throw new Error(msg);
   }
 

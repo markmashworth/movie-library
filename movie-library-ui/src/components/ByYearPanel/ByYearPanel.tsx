@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { StatsResponse } from '../types';
+import type { StatsResponse } from '../../types';
 
 interface ByYearPanelProps {
   stats: StatsResponse;

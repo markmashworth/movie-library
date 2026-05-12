@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { Filters } from '../types';
+import { useState, useRef } from 'react';
+import type { Filters } from '../../types';
 
 interface FilterBarProps {
   filters: Filters;
@@ -52,6 +52,7 @@ function Dropdown({
   onClose: () => void;
 }) {
   if (!open) return null;
+
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 30 }} />
@@ -80,6 +81,8 @@ type MenuId = 'genre' | 'rating' | 'year' | null;
 
 export function FilterBar({ filters, setFilters, genres, resultCount, totalCount }: FilterBarProps) {
   const [openMenu, setOpenMenu] = useState<MenuId>(null);
+  const [draftRating, setDraftRating] = useState(filters.minRating);
+  const ratingDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const close = () => setOpenMenu(null);
 
   const toggleGenre = (g: string) => {
@@ -159,23 +162,30 @@ export function FilterBar({ filters, setFilters, genres, resultCount, totalCount
           onClick={() => setOpenMenu(openMenu === 'rating' ? null : 'rating')}
         >
           Min rating
-          {filters.minRating > 0 && (
-            <span className="mono" style={{ color: 'var(--accent)' }}>· ★ {filters.minRating.toFixed(1)}</span>
+          {draftRating > 0 && (
+            <span className="mono" style={{ color: 'var(--accent)' }}>· ★ {draftRating.toFixed(1)}</span>
           )}
           <span style={{ fontSize: 9, opacity: .7 }}>▾</span>
         </FilterChip>
         <Dropdown open={openMenu === 'rating'} onClose={close} width={280}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span className="mono" style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.14em' }}>Minimum rating</span>
-            <span style={{ fontSize: 16, color: 'var(--accent)', fontWeight: 600 }}>★ {filters.minRating.toFixed(1)}</span>
+            <span style={{ fontSize: 16, color: 'var(--accent)', fontWeight: 600 }}>★ {draftRating.toFixed(1)}</span>
           </div>
           <input
             type="range"
             min="0"
             max="10"
             step="0.1"
-            value={filters.minRating}
-            onChange={e => setFilters(f => ({ ...f, minRating: parseFloat(e.target.value) }))}
+            value={draftRating}
+            onChange={e => {
+              const value = parseFloat(e.target.value);
+              setDraftRating(value);
+              if (ratingDebounceRef.current) clearTimeout(ratingDebounceRef.current);
+              ratingDebounceRef.current = setTimeout(() => {
+                setFilters(f => ({ ...f, minRating: value }));
+              }, 100);
+            }}
           />
           <div className="mono" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>
             <span>0.0</span><span>5.0</span><span>10.0</span>
@@ -253,7 +263,7 @@ export function FilterBar({ filters, setFilters, genres, resultCount, totalCount
         <FilterChip key={g} active removable onClick={() => setFilters(f => ({ ...f, genres: f.genres.filter(x => x !== g) }))}>{g}</FilterChip>
       ))}
       {filters.minRating > 0 && (
-        <FilterChip active removable onClick={() => setFilters(f => ({ ...f, minRating: 0 }))}>★ ≥ {filters.minRating.toFixed(1)}</FilterChip>
+        <FilterChip active removable onClick={() => { setDraftRating(0); setFilters(f => ({ ...f, minRating: 0 })); }}>★ ≥ {filters.minRating.toFixed(1)}</FilterChip>
       )}
       {(filters.yearMin !== null || filters.yearMax !== null) && (
         <FilterChip active removable onClick={() => setFilters(f => ({ ...f, yearMin: null, yearMax: null }))}>
@@ -269,7 +279,7 @@ export function FilterBar({ filters, setFilters, genres, resultCount, totalCount
       </div>
       {hasFilter && (
         <button
-          onClick={() => setFilters({ genres: [], minRating: 0, yearMin: null, yearMax: null })}
+          onClick={() => { setDraftRating(0); setFilters({ genres: [], minRating: 0, yearMin: null, yearMax: null }); }}
           style={{
             padding: '6px 12px', fontSize: 12, borderRadius: 999,
             background: 'transparent', border: '1px solid var(--border-strong)',

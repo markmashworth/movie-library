@@ -1,5 +1,5 @@
-import type { Movie } from '../types';
-import { Poster, Star } from './atoms';
+import type { Movie } from '../../types';
+import { Poster, Star } from '../Atoms/Atoms';
 
 interface SelectedToastProps {
   movie: Movie | null;

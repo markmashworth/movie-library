@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { Movie } from '../types';
-import { searchMovies } from '../movie-library-service';
-import { Poster, Star } from './atoms';
+import type { Movie } from '../../types';
+import { searchMovies } from '../../movie-library-service';
+import { Poster, Star } from '../Atoms/Atoms';
 
 interface TopbarProps {
   onOpenAdd: (initialTitle?: string) => void;

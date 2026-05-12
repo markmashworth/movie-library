@@ -3,14 +3,14 @@ import type { Movie, StatsResponse, Filters } from './types';
 import { listMovies, createMovie, getStats, getGenres } from './movie-library-service';
 import type { MovieInput } from './types';
 
-import { Topbar }         from './components/Topbar';
-import { StatsStrip }     from './components/StatsStrip';
-import { FilterBar }      from './components/FilterBar';
-import { Leaderboard }    from './components/Leaderboard';
-import { TopGenresPanel } from './components/TopGenresPanel';
-import { ByYearPanel }    from './components/ByYearPanel';
-import { AddMovieModal }  from './components/AddMovieModal';
-import { SelectedToast }  from './components/SelectedToast';
+import { Topbar }         from './components/Topbar/Topbar';
+import { StatsStrip }     from './components/StatsStrip/StatsStrip';
+import { FilterBar }      from './components/FilterBar/FilterBar';
+import { Leaderboard }    from './components/Leaderboard/Leaderboard';
+import { TopGenresPanel } from './components/TopGenresPanel/TopGenresPanel';
+import { ByYearPanel }    from './components/ByYearPanel/ByYearPanel';
+import { AddMovieModal }  from './components/AddMovieModal/AddMovieModal';
+import { SelectedToast }  from './components/SelectedToast/SelectedToast';
 
 const DEFAULT_FILTERS: Filters = { genres: [], minRating: 0, yearMin: null, yearMax: null };
 

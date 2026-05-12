@@ -1,4 +1,4 @@
-import type { StatsResponse } from '../types';
+import type { StatsResponse } from '../../types';
 
 interface TopGenresPanelProps {
   stats: StatsResponse;

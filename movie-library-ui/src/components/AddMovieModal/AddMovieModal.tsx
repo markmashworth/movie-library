@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import type { MovieInput } from '../types';
-import { ghostBtn, primaryBtn, modalInput } from './atoms';
-import { createGenre } from '../movie-library-service';
+import type { MovieInput } from '../../types';
+import { ghostBtn, primaryBtn, modalInput } from '../Atoms/Atoms';
+import { createGenre } from '../../movie-library-service';
 
 interface AddMovieModalProps {
   open: boolean;
@@ -128,6 +128,7 @@ export function AddMovieModal({ open, onClose, onAdd, onGenreCreated, genres, in
       await onAdd({ title: title.trim(), year: y, rating: Math.round(r * 10) / 10, genres: selectedGenres });
       onClose();
     } catch (err) {
+      console.log(err)
       setError((err as Error).message ?? 'Failed to save. Please try again.');
       setSaving(false);
     }

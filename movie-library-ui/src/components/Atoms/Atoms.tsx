@@ -1,6 +1,6 @@
 // Tiny shared atoms: Star icon, Poster card, and button style presets.
 
-import type { Movie } from '../types';
+import type { Movie } from '../../types';
 
 // ---------------------------------------------------------------------------
 // Star icon
