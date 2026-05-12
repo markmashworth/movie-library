@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { Movie } from '../../types';
 import { Poster, Star } from '../Atoms/Atoms';
 
@@ -7,6 +8,21 @@ interface SelectedToastProps {
 }
 
 export function SelectedToast({ movie, onClose }: SelectedToastProps) {
+  const [dismissing, setDismissing] = useState(false);
+
+  useEffect(() => {
+    if (!movie) return;
+    setDismissing(false);
+    const slideTimer = setTimeout(() => setDismissing(true), 15000);
+    return () => clearTimeout(slideTimer);
+  }, [movie]);
+
+  useEffect(() => {
+    if (!dismissing) return;
+    const closeTimer = setTimeout(onClose, 400);
+    return () => clearTimeout(closeTimer);
+  }, [dismissing, onClose]);
+
   if (!movie) return null;
   return (
     <div
@@ -17,7 +33,7 @@ export function SelectedToast({ movie, onClose }: SelectedToastProps) {
         border: '1px solid var(--border-strong)',
         boxShadow: 'var(--shadow)',
         display: 'flex', gap: 14,
-        animation: 'slideUp .2s ease-out',
+        animation: dismissing ? 'slideRight .4s ease-in forwards' : 'slideUp .2s ease-out',
       }}
     >
       <Poster movie={movie} w={64} h={92} big />
@@ -25,7 +41,7 @@ export function SelectedToast({ movie, onClose }: SelectedToastProps) {
         <div className="mono" style={{ fontSize: 9, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '.14em' }}>
           Found in library
         </div>
-        <div style={{ fontSize: 16, fontWeight: 600, marginTop: 4, marginBottom: 4, color: 'var(--text)' }}>
+        <div style={{ fontSize: 16, fontWeight: 600, marginTop: 4, marginBottom: 4, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {movie.title}
         </div>
         <div className="mono" style={{ fontSize: 10, color: 'var(--text-3)' }}>
@@ -39,7 +55,7 @@ export function SelectedToast({ movie, onClose }: SelectedToastProps) {
         </div>
       </div>
       <button
-        onClick={onClose}
+        onClick={() => setDismissing(true)}
         style={{
           background: 'transparent', border: 'none', color: 'var(--text-3)',
           cursor: 'pointer', fontSize: 18, alignSelf: 'flex-start',

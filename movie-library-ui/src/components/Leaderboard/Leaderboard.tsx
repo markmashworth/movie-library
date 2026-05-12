@@ -42,7 +42,7 @@ function LeaderboardRow({ rank, movie }: { rank: number; movie: Movie }) {
       <RankNumber n={rank} />
       <Poster movie={movie} w={48} h={68} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {movie.title}
         </div>
         <div className="mono" style={{ fontSize: 10, color: 'var(--text-3)', letterSpacing: '.06em', textTransform: 'uppercase' }}>

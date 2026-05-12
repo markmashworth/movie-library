@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { render, screen, fireEvent, act } from '@testing-library/react'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { SelectedToast } from './SelectedToast'
 import type { Movie } from '../../types'
 
@@ -51,11 +51,18 @@ describe('SelectedToast', () => {
   })
 
   // ── Close interaction ─────────────────────────────────────────────────────
-  it('calls onClose when the × button is clicked', () => {
-    const onClose = vi.fn()
-    render(<SelectedToast movie={movie} onClose={onClose} />)
-    fireEvent.click(screen.getByRole('button'))
-    expect(onClose).toHaveBeenCalledTimes(1)
+  describe('× button dismissal', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => vi.useRealTimers())
+
+    it('calls onClose when the × button is clicked (after slide-out animation)', () => {
+      const onClose = vi.fn()
+      render(<SelectedToast movie={movie} onClose={onClose} />)
+      fireEvent.click(screen.getByRole('button'))
+      expect(onClose).not.toHaveBeenCalled() // animation still running
+      act(() => vi.advanceTimersByTime(400))
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('does NOT call onClose when clicking inside the toast body', () => {

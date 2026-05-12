@@ -10,7 +10,6 @@ movie-library-ui/        React + TypeScript + Vite front-end
 artifacts/               Wireframes and protoype used to ideate on the UI design.
 ```
 
-
 ## Running the backend
 
 See instructions in the `movie-library-service` [README.md](./movie-library-service/README.md) for instructions.
