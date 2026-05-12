@@ -29,30 +29,33 @@ function getMaxYear(): number {
   return new Date().getFullYear() + 3;
 }
 
-function sortMovies(movies: Movie[], sort: SortOrder): Movie[] {
-  return [...movies].sort((a, b) => {
-    switch (sort) {
-      case 'rating_desc': return b.rating - a.rating;
-      case 'rating_asc':  return a.rating - b.rating;
-      case 'year_desc':   return b.year - a.year;
-      case 'year_asc':    return a.year - b.year;
-      case 'title_asc':   return a.title.localeCompare(b.title);
-    }
-  });
+/**
+ * Returns the comparator used to order movies for a given `SortOrder`.
+ */
+function movieComparator(sort: SortOrder): (a: Movie, b: Movie) => number {
+  switch (sort) {
+    case 'rating_desc': return (a, b) => b.rating - a.rating;
+    case 'rating_asc':  return (a, b) => a.rating - b.rating;
+    case 'year_desc':   return (a, b) => b.year - a.year;
+    case 'year_asc':    return (a, b) => a.year - b.year;
+    case 'title_asc':   return (a, b) => a.title.localeCompare(b.title);
+  }
 }
 
 /**
- * Naive match-quality scorer for the `q` substring search.
+ * Match-quality scorer for the `q` substring search. Operates on
+ * already-lowercased strings so the caller can lowercase once per query
+ * (and once per movie, via the repository's titleLowerById cache) rather
+ * than on every comparator invocation.
+ *
  * Lower score = better match.
- *   0 – exact match (case-insensitive)
+ *   0 – exact match
  *   1 – title starts with the query
  *   2 – query appears elsewhere in the title
  */
-function matchScore(title: string, q: string): number {
-  const lower = title.toLowerCase();
-  const query = q.toLowerCase();
-  if (lower === query) return 0;
-  if (lower.startsWith(query)) return 1;
+function matchScoreLowered(titleLower: string, queryLower: string): number {
+  if (titleLower === queryLower) return 0;
+  if (titleLower.startsWith(queryLower)) return 1;
   return 2;
 }
 
@@ -72,62 +75,78 @@ export function listMovies(params: ListMoviesParams): ListMoviesResult {
     offset = 0,
   } = params;
 
-  // 1. Start with the genre-filtered set (or all movies).
   const genreFilter = genre
     ? Array.isArray(genre) ? genre : [genre]
     : [];
+  const hasGenreFilter = genreFilter.length > 0;
+  const hasYearFilter = year_min !== undefined || year_max !== undefined;
 
-  let candidates: Movie[] =
-    genreFilter.length > 0
-      ? movieRepository.findByGenres(genreFilter)
-      : movieRepository.findAll();
-
-  // 2. Apply remaining filters in order of descending selectivity so that each
-  //    subsequent filter operates on the smallest possible set.
+  // -------------------------------------------------------------------------
+  // 1. Resolve the candidate set via the repository indexes (analagous to a DB index).
   //
-  //    Order rationale:
-  //    a) Genre — already handled above at the repository level via the byGenre
-  //       secondary index; no per-movie iteration needed, so it's free.
-  //    b) `q` (title text search) — typically the most selective filter: a
-  //       specific substring like "alien" matches only a handful of titles.
-  //       It's also the most expensive per item (toLowerCase + includes), so
-  //       running it first shrinks the set that cheaper filters must scan.
-  //    c) `min_rating` — a high threshold (e.g. 7.0) eliminates a substantial
-  //       fraction of the catalog in a single cheap numeric comparison.
-  //    d) `year_min` / `year_max` — year ranges tend to be broad (spanning
-  //       multiple decades), making them the least selective filter. They are
-  //       merged into a single pass to avoid allocating an intermediate array.
+  // Genre and year both have secondary indexes (byGenre, byYear). When either
+  // filter is present we work with movie IDs and intersect, only hydrating to
+  // Movie objects after the fact. When neither is present we fall back to a full scan.
+  // -------------------------------------------------------------------------
+  let candidates: Movie[];
+  if (hasGenreFilter && hasYearFilter) {
+    const genreIds = movieRepository.findIdsByGenres(genreFilter);
+    const yearIds = movieRepository.findIdsByYearRange(year_min, year_max);
+    // Iterate the smaller set; membership-check against the larger.
+    const [small, large] = genreIds.size <= yearIds.size
+      ? [genreIds, yearIds]
+      : [yearIds, genreIds];
+    const intersection: number[] = [];
+    for (const id of small) {
+      if (large.has(id)) intersection.push(id);
+    }
+    candidates = movieRepository.hydrate(intersection);
+  } else if (hasGenreFilter) {
+    candidates = movieRepository.findByGenres(genreFilter);
+  } else if (hasYearFilter) {
+    candidates = movieRepository.hydrate(
+      movieRepository.findIdsByYearRange(year_min, year_max),
+    );
+  } else {
+    candidates = movieRepository.findAll();
+  }
+
+  // Apply the remaining filters in order of descending selectivity so that
+  // each subsequent filter operates on the smallest possible set.
+  // Genre + year (handled via "indexes") > text search (most selective) > min_rating (least selective)
+  let queryLower: string | undefined;
   if (q) {
-    const query = q.toLowerCase();
-    candidates = candidates.filter(m => m.title.toLowerCase().includes(query));
+    queryLower = q.toLowerCase();
+    candidates = candidates.filter(m => {
+      const titleLower = movieRepository.getTitleLower(m.id) ?? m.title.toLowerCase();
+      return titleLower.includes(queryLower!);
+    });
   }
   if (min_rating > 0) {
     candidates = candidates.filter(m => m.rating >= min_rating);
   }
-  if (year_min !== undefined || year_max !== undefined) {
-    candidates = candidates.filter(
-      m =>
-        (year_min === undefined || m.year >= year_min) &&
-        (year_max === undefined || m.year <= year_max),
-    );
-  }
 
-  // 3. Sort — when a text query is present, rank by match quality first, then
-  //    apply the requested sort as a tiebreaker.
-  if (q) {
-    const query = q;
-    candidates = candidates.sort((a, b) => {
-      const scoreDiff = matchScore(a.title, query) - matchScore(b.title, query);
-      if (scoreDiff !== 0) return scoreDiff;
-      return sortMovies([a, b], sort).indexOf(a) === 0 ? -1 : 1;
+  // Sort the candidates. When text query is present, rank by match quality first and use the requested sort as a tiebreaker.
+  const cmp = movieComparator(sort);
+  if (q && queryLower !== undefined) {
+    const ql = queryLower;
+    const scored = candidates.map(m => {
+      const titleLower = movieRepository.getTitleLower(m.id) ?? m.title.toLowerCase();
+      return { movie: m, score: matchScoreLowered(titleLower, ql) };
     });
+    scored.sort((a, b) => {
+      const scoreDiff = a.score - b.score;
+      return scoreDiff !== 0 ? scoreDiff : cmp(a.movie, b.movie);
+    });
+    candidates = scored.map(s => s.movie);
   } else {
-    candidates = sortMovies(candidates, sort);
+    candidates.sort(cmp);
   }
 
   const total = candidates.length;
 
-  // 4. Paginate.
+  // Paginate. Limit the limit to 100 and the offset to 0.
+  // For a production DB, we would use a cursor-based pagination approach to avoid the need scan unused entries.
   const clampedLimit  = Math.min(Math.max(limit, 1), 100);
   const clampedOffset = Math.max(offset, 0);
   const data = candidates.slice(clampedOffset, clampedOffset + clampedLimit);
@@ -289,15 +308,18 @@ export interface StatsOptions {
 const TOP_GENRES_DEFAULT = 5;
 const TOP_GENRES_MAX = 100;
 
+// Method to return aggregate statistics about the movie catalog. In production, against a DB, this
+// would be extremely expensive to compute on the fly, so this would be pre-computed and cached.
+// In this case, we're using an in-memory store, so we can afford to compute it on the fly.
 export function getStats(options: StatsOptions = {}): Stats {
   const limit = Math.min(
     Math.max(options.topGenresLimit ?? TOP_GENRES_DEFAULT, 1),
     TOP_GENRES_MAX,
   );
 
-  const all = movieRepository.findAll();
+  const agg = movieRepository.getAggregates();
 
-  if (all.length === 0) {
+  if (agg.count === 0) {
     return {
       total: 0,
       avg_rating: 0,
@@ -309,47 +331,31 @@ export function getStats(options: StatsOptions = {}): Stats {
     };
   }
 
-  const total = all.length;
-  const avg_rating =
-    Math.round((all.reduce((s, m) => s + m.rating, 0) / total) * 100) / 100;
+  // Headline metrics: read directly from the running aggregates. No per-call
+  // scan of the catalog is needed — counters are maintained incrementally
+  // in the repository on every upsert.
+  const total = agg.count;
+  const avg_rating = Math.round((agg.ratingSum / total) * 100) / 100;
+  const min_year = agg.minYear ?? 0;
+  const max_year = agg.maxYear ?? 0;
+  const genre_count = agg.genreCounts.size;
 
-  let min_year = all[0]!.year;
-  let max_year = all[0]!.year;
-  for (const m of all) {
-    if (m.year < min_year) min_year = m.year;
-    if (m.year > max_year) max_year = m.year;
-  }
-
-  const genreCounts = new Map<string, number>();
-  for (const m of all) {
-    for (const g of m.genres) {
-      genreCounts.set(g, (genreCounts.get(g) ?? 0) + 1);
-    }
-  }
-  const genre_count = genreCounts.size;
-  const top_genres = Array.from(genreCounts.entries())
+  const top_genres = Array.from(agg.genreCounts.entries())
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, limit)
     .map(([name, count]) => ({ name, count }));
 
-  const yearMap = new Map<number, Movie[]>();
-  for (const m of all) {
-    let bucket = yearMap.get(m.year);
-    if (!bucket) {
-      bucket = [];
-      yearMap.set(m.year, bucket);
-    }
-    bucket.push(m);
-  }
-
-  const by_year: YearBucket[] = Array.from(yearMap.entries())
+  // by_year still hydrates Movies (the response includes the per-year movie
+  // list), but uses the precomputed byYear index — no re-bucketing required.
+  const by_year: YearBucket[] = Array.from(movieRepository.yearBuckets())
     .sort((a, b) => b[0] - a[0])
-    .map(([year, movies]) => {
-      const sorted = [...movies].sort((a, b) => b.rating - a.rating);
+    .map(([year, ids]) => {
+      const movies = movieRepository.hydrate(ids)
+        .sort((a, b) => b.rating - a.rating);
       return {
         year,
-        count: sorted.length,
-        movies: sorted.map(({ id, title, rating, genres }) => ({
+        count: movies.length,
+        movies: movies.map(({ id, title, rating, genres }) => ({
           id, title, rating, genres,
         })),
       };

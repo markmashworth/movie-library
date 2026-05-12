@@ -131,9 +131,7 @@ moviesRouter.post('/', idempotency(), (req: Request, res: Response) => {
     // 'duplicate' — same (title, year, rating) already exists.
     res.status(409).json({
       error: 'duplicate_movie',
-      message:
-        'A movie with the same title, year, and rating already exists. ' +
-        'To add genres to it, update the existing record.',
+      message: 'A movie with the same title, year, and rating already exists.',
       existing: result.existing,
     });
     return;

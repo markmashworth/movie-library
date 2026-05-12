@@ -2,20 +2,23 @@
  * Migration service — recursively walks a Google Drive folder tree, parses each
  * JSON file into a movie, and persists it via the movie service.
  *
- * The traversal is driven by two independent in-memory queues (p-queue):
+ * The traversal is driven by two independent in-memory p-queues:
  *
  *   directoryQueue – one task per folder. Lists the folder's children. Each
  *                    subfolder is re-enqueued on the directoryQueue; each JSON
  *                    file is enqueued on the fileQueue.
- *
  *   fileQueue      – one task per file. Downloads the file's contents,
  *                    validates it shapes into a movie, and persists it via
  *                    movie-service.
- *
- * Both queues share the same singleton GoogleDriveClient. Errors are logged
- * and the offending unit of work is skipped — the migration as a whole keeps
- * running. In a productionized service, this would be replaced with a more
- * robust error handling and retry mechanism via a distributed queue.
+ */
+
+/**
+ * Errors are logged and the offending unit of work is skipped — the migration as a
+ * whole keeps running.
+ * 
+ * In a productionized service, this would be replaced with a more robust
+ * error handling and retry mechanism via a distributed queue with DLQs
+ * and a persistent store for resumability and progress tracking.
  */
 
 import PQueue from 'p-queue';
