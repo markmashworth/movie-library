@@ -12,6 +12,6 @@
     "outDir": "./dist",
     "rootDir": "."
   },
-  "include": ["index.ts", "vitest.config.ts", "src/**/*.ts"],
+  "include": ["index.ts", "vitest.config.ts", "vitest.integration.config.ts", "src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

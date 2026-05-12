@@ -13,7 +13,7 @@
     "typescript-eslint": "^8.58.2",
     "vitest": "^3.0.0"
   },
-  "name": "movie-library-explorer",
+  "name": "movie-library-service",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {

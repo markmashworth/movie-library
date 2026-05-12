@@ -19,7 +19,11 @@ See instructions in the `movie-library-service` [README.md](./movie-library-serv
 
 See instructions in the `movie-library-ui` [README.md](./movie-library-ui/README.md) for instructions.
 
-## Running the CI pipeline
+## CI pipeline
+
+Workflows can be viewed in GitHub [here](https://github.com/markmashworth/movie-library/actions).
+
+### Running the CI pipeline locally
 
 Install dependencies:
 
