@@ -52,7 +52,11 @@ curl -X POST http://localhost:8080/v1/migration \
 
 ## Running tests
 
-Tests use [Vitest](https://vitest.dev/) with supertest for HTTP-level integration tests. Test files live alongside their source modules in `src/` (e.g. `*.test.ts`).
+Tests use [Vitest](https://vitest.dev/). There are two separate test suites:
+
+### Unit tests
+
+Unit tests live alongside their source modules in `src/` (e.g. `src/routes/movies.test.ts`).
 
 ```bash
 # Single run
@@ -64,6 +68,18 @@ npm run test:watch
 # Single run with coverage report
 npm run test:coverage
 ```
+
+### Integration tests
+
+Integration tests live in `src/integration/` and test the actual service. The test suite spawns `tsx index.ts` as a child process, waits for the server to become ready, then makes HTTP requests against it.
+
+There is currently only a minimal integration test that tests the `/heartbeat` endpoint to verify the app can start up.
+
+```bash
+npm run test:integration
+```
+
+> **Note:** Port 8080 must be free when running integration tests. Stop any locally running instance of the service first.
 
 ---
 
